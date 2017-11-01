@@ -1,0 +1,19 @@
+---
+title: "IODS course project"
+author: "Pekka Vartiainen"
+output:
+  html_document:
+    theme: journal
+    toc: false
+    toc_depth: 2
+    fig_caption: true
+    fig_width: 6
+    fig_height: 4
+    code_folding: hide
+---
+
+## Introduction to open data science -  
+
+Learning something new already. I wonder if many researchers in medicine use R markdown? 
+
+[https://pecsimax.github.io/IODS-project/](https://pecsimax.github.io/IODS-project/)
