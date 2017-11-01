@@ -16,5 +16,7 @@ output:
 
 The course seems really interesting. It's cool that we have an enthusiastic teacher. I wonder if many researchers in medicine use R markdown?  
 
+I also think I made the 'R short and sweet' course without going to Datacamp via mooc, and got no xp :( 
+
 [https://pecsimax.github.io/IODS-project/](https://pecsimax.github.io/IODS-project/)
 *At the moment it seems that the journal page doesn't exist...*
