@@ -3,7 +3,7 @@ title: "IODS course project"
 author: "Pekka Vartiainen"
 output:
   html_document:
-    theme: journal
+    theme: jekyll-theme-cayman
     toc: true
     toc_depth: 2
     fig_caption: true
