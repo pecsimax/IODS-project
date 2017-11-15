@@ -1,4 +1,4 @@
-# Regression and model validation excercise
+# Chapter 2: Regression and model validation excercise
 
 *On tuesday, I did the data wrangling excercises and on wednesday, the data analysis tasks. I have some prior experience in working with dplyr, so the wrangling part was not too challenging, but it was great refreshment. For example, I realised that in dplyr, it's not too easy to calculate "rowMeans" -style of functions selecting only a part of the file - the best way to do it was by first selecting a part of dataset.*
 
@@ -29,7 +29,7 @@ str(learn)
 dim(learn)
 ```
 #### About the data
-"learn" is a dataset of 166 students, with variables "gender", "age", "attitude", "points", depe, stra, surf. Last three are scales measuring different aspects of learning  (deep, strategic or surface learning). The students scoring 0 points on exam are not included.
+"learn" is a dataset of 166 students, with variables "gender", "age", "attitude", "points", "deep", "stra" and "surf". Last three are scales measuring different aspects of learning  (deep, strategic or surface learning). The students scoring 0 points on exam are not included.
 
 #### Exploring the data
 ```{r}
