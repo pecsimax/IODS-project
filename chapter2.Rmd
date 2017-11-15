@@ -1,7 +1,98 @@
-# Insert chapter 2 title here
+# Regression and model validation excercise
 
-*Describe the work you have done this week and summarize your learning.*
+*On tuesday, I did the data wrangling excercises and on wednesday, the data analysis tasks. I have some prior experience in working with dplyr, so the wrangling part was not too challenging, but it was great refreshment. For example, I realised that in dplyr, it's not too easy to calculate "rowMeans" -style of functions selecting only a part of the file - the best way to do it was by first selecting a part of dataset.*
 
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using  
+### Here begins the code
+setup, setting the working directory and opening the data
+```{r setup, warning = FALSE, results='hide', message=FALSE}
+ ## change the working directory of this r markdown file
+knitr::opts_chunk$set(root.dir = "/Users/pecsi_max/Desktop/GitHub/IODS-project/data/")
+setwd("/Users/pecsi_max/Desktop/GitHub/IODS-project/data/")
+getwd()
+
+#load the required packages
+library(ggplot2)
+library(GGally)
+library(dplyr)
+```
+Opening the data
+*"tbl_df" converts the data frame to a "data table" -format. To my knowledge, it is recommended when using dplyr, although I believe that in these excercises it's not a big difference.*
+```{r warning = FALSE}
+#read the data.  
+
+learn <- tbl_df(read.csv("/Users/pecsi_max/Desktop/GitHub/IODS-project/data/learning2014.csv"))
+
+#structure of data
+str(learn)
+
+#dimensions of data
+dim(learn)
+```
+#### About the data
+"learn" is a dataset of 166 students, with variables "gender", "age", "attitude", "points", depe, stra, surf. Last three are scales measuring different aspects of learning  (deep, strategic or surface learning). The students scoring 0 points on exam are not included.
+
+#### Exploring the data
+```{r}
+
+#create a plot matrix with all the variables
+pairs_plot <- ggpairs(learn, mapping = aes(alpha = 0.5), 
+                      lower = list(combo = wrap("facethist", bins = 20),
+                                   continuous = wrap("points", size=0.1)),
+                      upper = list(continuous = wrap("cor", alpha = 1)))
+pairs_plot
+```
+
+#### Comments on preliminary associations
+* Females outnumber males by almost 2:1, students are most in their 20's
+* Attitude strongly correlates with points
+* Females have perhaps better attitudes than males.
+
+##### Different aspects of learning and points
+* Strategic learning slightly positively correlated with poits
+* Deep learning not correlated with points
+* Surface learning negatively correlated with points
+* Correlations of attitude and these aspects of learning are similar
+
+### Linear regression model
+#### Model 1
+```{r}
+#construct a model, choosing 3 variables as dependent vars: attitude, surface learning, strategic learning
+model1 <- lm(points ~ attitude + stra + surf, data = learn)
+summary(model1)
+```
+##### Comments on model 1
+
+There is statistically significant linear association, adj. R-squared = 0.192. Only attitude appears to be statistically significantly associated with exam points. Let's change the model...   
+
+#### Model 2
+
+```{r}
+# testing to put all variables in the model 
+model_all <- lm(points ~ attitude + gender + age + deep + stra + surf, data = learn)
+summary(model_all)
+```
+Age and stra are perhaps the best predictors in addition to attitude, even though their p>0.05
+
+#### Final model
+Create a model with three best explaining variables
+```{r} 
+model_final <- lm(points ~ attitude + age + stra, data = learn)
+summary(model_final)
+```
+##### Comments on the final model
+
+Adjusted R-squared = 0.2037, marginally better than in model 1. Adjusted R-squared of 0.2037 means that the model explains 20.4% in variance observed in exam points. The "adjusted" word means that the value is adjusted for the number of variables in the model. 
+
+Only attitude is statistically significantly associated with points; an increase of 1 in attitude brings 0.34 points in exam. 1 year increase in age takes 0.09 points in exam, but the relationship is not considered statistically significant. Strategic learning is "borderline significant", associating perhaps to slightly better points. However, it should be stressed that attitude is the only variable clearly associated with exam scores.
+
+### Visualization of the model diagnostics
+```{r}
+plot(model_final, which = (c(1, 2, 5)))
+```
+<br>
+<br>
+
+####From the diagnostic plots, we can see the following:
+* in 'Residuals', the mean of residuals (i.e. the difference between predicted and observed values of 'points') is close to zero in all fitted values (in x-axis). There is not a linear, neither non-linear pattern in residuals. Some outliers (cases 56, 145, 35) are indicated.
+* in 'Normal Q-Q' plot, all the residuals are beautifully lined. Same outliers are indicated
+* in 'Residuals vs. Leverage', all the cases are well inside the Cook's distance, which means that even the outliers follow the pattern of other data points, and that they should not change the model too much. in fact, the limit values of Cook's distance fall outside of the plot's range.
