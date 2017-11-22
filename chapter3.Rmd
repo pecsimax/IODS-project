@@ -3,8 +3,7 @@ title: "chapter 3"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r, include=FALSE}
 library(tidyr)
 library(dplyr)
 library(ggplot2)
@@ -150,44 +149,39 @@ colnames(alc)
 #2nd model
 modbin2 <- glm(data=alc, high_use ~ sex + school + age + address + famsize + Pstatus + reason + internet + failures + schoolsup +
                   activities + romantic + freetime + goout + absences + G3, family = "binomial")
-summary(modbin2)
+
 
 prob2 <- predict(modbin2, type = "response")
 train2 <- loss_func(prob=prob2)
 
 cv2 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin2, K = 10)
-cv2$delta[1]
 
 #3rd model
 modbin3 <- glm(data=alc, high_use ~ sex + school + age  + failures + schoolsup +
                   activities + romantic + freetime + goout + absences + G3, family = "binomial")
-summary(modbin3)
+
 
 prob3 <- predict(modbin3, type = "response")
 train3 <- loss_func(prob=prob3)
 
 cv3 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin3, K = 10)
-cv3$delta[1]
 
 #4th model
 modbin4 <- glm(data=alc, high_use ~ sex + school + schoolsup + reason + activities + goout + freetime + absences, family = "binomial")
-summary(modbin4)
 
 prob4 <- predict(modbin4, type = "response")
 train4 <- loss_func(prob=prob4)
 
 cv4 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin4, K = 10)
-cv4$delta[1]
+
 
 #5th model
 modbin5 <- glm(data=alc, high_use ~ sex  + activities + goout + absences, family = "binomial")
-summary(modbin5)
 
 prob5 <- predict(modbin5, type = "response")
 train5 <- loss_func(prob=prob5)
 
 cv5 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin5, K = 10)
-cv5$delta[1]
 
 
 #now create a vector of testing errors and training errors
