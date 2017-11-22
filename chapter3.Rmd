@@ -1,0 +1,208 @@
+---
+title: "chapter 3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(psych)
+library(purrr)
+library(GGally)
+library(tableone)
+```
+
+```{r, warning = F}
+#create a directory path, where the data is located
+path <- paste(getwd(), "data", "alcohol", sep = "/") 
+
+#create the data
+alc <- read.csv(path)
+colnames(alc)
+glimpse(alc)
+```
+#### Data
+'alc' is a dataset of students portugese schools, about their performance in two subjects, mathematics and portugese language. It contains variables on students' education, family, school performance, and alcohol use, which is a special interest in this report.
+<br>
+For exploration, let's create two datasets - alc_col and alc_other. Alc_col contains factors, alc_other supposedly continuous variables. As "failures" -variable seems to be 4-level, let's add it to alc_cols as well.
+```{r} 
+#make indices which variables are columns and which are other than columns
+alc_colinds <- which(map_lgl(alc, is.factor))
+alc_col <- dplyr::select(alc, alc_colinds, failures, high_use)
+alc_other <- dplyr::select(alc, -alc_colinds, -failures, high_use)
+
+
+#plot explorative plots 
+
+alc_col %>% gather(key, value, -high_use) %>%
+  ggplot(., aes(x=value, fill = high_use)) + geom_bar() +
+   facet_wrap("key", scales = "free", shrink = TRUE)
+
+alc_other %>% gather(key, value, -high_use) %>%
+  ggplot(., aes(x=high_use, y=value)) + geom_boxplot() + 
+  facet_wrap("key", scales = "free", shrink = T)
+
+```
+<br>
+
+#### Interesting variables
+We select 4 interesting variables for analysis, let they be: famrel, sex, absences, goout.
+
+* Famrel - quality of family relationships (numeric: from 1 - very bad to 5 - excellent). Probably bad family relations relate to higher alcohol use.
+* Sex - probably boys drink more than girls. 
+* Absences - number of absences. Probably high if the student drinks a lot
+* G3 - the final grade. Probably bad grades are related to higher alcohol use.
+
+<br>
+<br>
+
+Let's do some exploratory analyses with these variables - we look at the possible differences in high and low alcohol consumption groups.
+```{r}
+# create a dataset with the variables of interest
+ alc_log <- alc %>% 
+  dplyr::select(famrel, sex, absences, goout, high_use) 
+  
+#exploratory table
+CreateTableOne(data = alc_log, strata = "high_use", vars = c("famrel", "sex", "absences", "goout"))
+```
+<br>
+
+In all our variables, there appears to be a statistically significant difference in either the ratio of heavy drinkers, or the mean value of continuous variable is different in those who drink much.
+
+### The logistic regression model
+```{r}
+modbin <- glm(data = alc_log, high_use ~ famrel + sex + absences + goout, family = "binomial") 
+
+#look at the model
+summary(modbin)
+
+#calculate CI's
+modbin_odds <- exp(cbind(OR = coef(modbin), confint(modbin)))
+
+modbin_odds
+```
+<br>
+All the variables are significantly associated with high alcohol use. Family relations are inversely related - the better the family relations, the lower the odds for drinking are. Being male increases the OR to 2,8. Absences and going out are related to higher chance of high alcohol use. 
+ 
+### Prediction
+ 
+```{r}
+#let's add the probabilities to data frame
+alc_pred <- alc %>% 
+  mutate(prob = predict(modbin, type = "response")) %>%
+  mutate(pred = prob>0.5) 
+ 
+#table 
+obs_table <- table(high_use = alc_pred$high_use, prediction = alc_pred$pred) 
+prob_table <- obs_table %>% prop.table %>% addmargins
+
+obs_table
+prob_table
+```
+<br>
+in 'obs_table, the number of "true positives" is 50, and "false positives" is 14. "True negatives" are 254, and "false negatives" are 64. In prob_table, 66% were classified rightly as non-high drinkers, 16% were classified wrongly to non-high drinkers; 3% were classified wrongly as high-drinkers, and 13% were rightly assigned a high-drinker status.
+<br>
+<br>
+
+```{r}
+#visualise the relation
+ggplot(alc_pred, aes(x = prob, y = high_use, col = pred)) + geom_point()
+```
+<br>
+we see that in high drinkers, the number of false predictions is rather high. 
+
+### Proportion of false predictions
+```{r}
+#define the loss function
+loss_func <- function(class = alc_pred$high_use, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+
+# apply the loss function to different prediction strategies
+# probability of high drinking is 0 in all
+loss_func(prob=0)
+# probability of high drinking is 1 in all
+loss_func(prob=1)
+loss_func(prob = alc_pred$prob)
+
+```
+If we guess at randomly that students are non-high drinkers, the prediction error is around 30%. If we think that everyone are high drinkers, the error is  70%. With our model, the training error is "only" 20%
+<br>
+<br>
+
+### Cross-validation
+```{r}
+library(boot)
+cv <- cv.glm(data = alc_pred, cost = loss_func, glmfit = modbin, K = 10)
+cv$delta[1]
+```
+<br>
+The cross-validation analysis is done with the function 'cv.glm'. K is the number of pieces we split the data into. The first element of cv$delta is the prediction error (the second component would be a value adjusted for some bias). So, with 5-fold cross-validation, our model has 20,2% prediction error, which is better than the apprx. 26% error in DataCamp excercise!
+
+#### SUPER-BONUS
+```{r}
+library(boot)
+colnames(alc)
+
+#2nd model
+modbin2 <- glm(data=alc, high_use ~ sex + school + age + address + famsize + Pstatus + reason + internet + failures + schoolsup +
+                  activities + romantic + freetime + goout + absences + G3, family = "binomial")
+summary(modbin2)
+
+prob2 <- predict(modbin2, type = "response")
+train2 <- loss_func(prob=prob2)
+
+cv2 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin2, K = 10)
+cv2$delta[1]
+
+#3rd model
+modbin3 <- glm(data=alc, high_use ~ sex + school + age  + failures + schoolsup +
+                  activities + romantic + freetime + goout + absences + G3, family = "binomial")
+summary(modbin3)
+
+prob3 <- predict(modbin3, type = "response")
+train3 <- loss_func(prob=prob3)
+
+cv3 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin3, K = 10)
+cv3$delta[1]
+
+#4th model
+modbin4 <- glm(data=alc, high_use ~ sex + school + schoolsup + reason + activities + goout + freetime + absences, family = "binomial")
+summary(modbin4)
+
+prob4 <- predict(modbin4, type = "response")
+train4 <- loss_func(prob=prob4)
+
+cv4 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin4, K = 10)
+cv4$delta[1]
+
+#5th model
+modbin5 <- glm(data=alc, high_use ~ sex  + activities + goout + absences, family = "binomial")
+summary(modbin5)
+
+prob5 <- predict(modbin5, type = "response")
+train5 <- loss_func(prob=prob5)
+
+cv5 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin5, K = 10)
+cv5$delta[1]
+
+
+#now create a vector of testing errors and training errors
+cv_vector <- c(cv2$delta[1], cv3$delta[1], cv4$delta[1], cv5$delta[1])
+train_vector <- c(train2, train3, train4, train5)
+
+length_vector <- c(16, 11, 8, 4)
+
+
+plot(cv_vector, length_vector)
+plot(train_vector, length_vector)
+```
+
+The trend in testing error (calculated with 10-fold cross-validation) appears to be increasing as the number of variables goes up. The training error is not necessarily so, as with 4 predictors the training error appears to be greater....
+<br>
+<br>
+
+Thanks for reading!
