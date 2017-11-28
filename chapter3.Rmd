@@ -89,10 +89,20 @@ All the variables are significantly associated with high alcohol use. Family rel
  
 ```{r}
 #let's add the probabilities to data frame
-alc_pred <- alc %>% 
-  mutate(prob = predict(modbin, type = "response")) %>%
-  mutate(pred = prob>0.5) 
- 
+# JUHON VINKIT: treshold tulisi tähän, tätä muuttamalla voit säätää sensitiviteettiä ja spesifiteettiä
+
+alc_pred$prob <- predict(modbin, type = "response")
+
+sapply(1:99, function(x) {
+  a <- alc_pred$prob > (x/100)  
+  b <- a == alc$high_use
+  1-mean(b) 
+}
+) %>% plot  
+
+
+alc_pred$pred <- (alc$prob > 0.46)
+
 #table 
 obs_table <- table(high_use = alc_pred$high_use, prediction = alc_pred$pred) 
 prob_table <- obs_table %>% prop.table %>% addmargins
@@ -116,9 +126,12 @@ we see that in high drinkers, the number of false predictions is rather high.
 ```{r}
 #define the loss function
 loss_func <- function(class = alc_pred$high_use, prob) {
-  n_wrong <- abs(class - prob) > 0.5
+  n_wrong <- abs(class - prob - 0.04) > 0.5
   mean(n_wrong)
 }
+
+a <- alc_pred$pred == alc_pred$high_use
+1-mean(a)
 
 # apply the loss function to different prediction strategies
 # probability of high drinking is 0 in all

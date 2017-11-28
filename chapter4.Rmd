@@ -1,0 +1,185 @@
+---
+title: "chapter 4"
+output: html_document
+---
+
+```{r, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(root.dir = "/Users/pecsi_max/Desktop/GitHub/IODS-project/")
+library(MASS)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(psych)
+library(purrr)
+library(GGally)
+library(tableone)
+library(corrplot)
+```
+
+# Chapter 4 - clustering and classification
+### About the data
+We use the 'Boston' dataset from the MASS package. This dataset contains information collected by the U.S Census Service concerning housing in the area of Boston Mass. It contains variables about housing in Boston; [more info here](https://www.cs.toronto.edu/~delve/data/boston/bostonDetail.html)
+
+
+
+```{r, warning = FALSE, message=FALSE}
+#load the data & first glimpses
+library(MASS)
+data("Boston")
+glimpse(Boston)
+```
+
+The data contains 506 rows and 14 columns, i.e. variables. All variables are numeric (type 'dbl') except 'chas' and 'rad', that are 'int' and appear as factors.
+
+```{r}
+#Visualize the histograms
+Boston %>% gather(key, value) %>%
+  ggplot(., aes(x=value)) + geom_histogram(bins = 30) + 
+  facet_wrap("key", scales = "free", shrink = T)
+
+#visualize the correlations. First, calculate the p values for correlations
+p.mat <- cor.mtest(Boston, method = "spearman", exact = FALSE)
+
+#then, calculate and plot correlations. The function leaves out insignificant correlations
+cor(Boston, method = "spearman") %>% corrplot(method = "circle", 
+                         type = "upper", 
+                         tl.cex = 1.3, cl.pos = "b",
+                         p.mat = p.mat$p, sig.level = 0.05, insig = "blank",
+                         diag = FALSE)
+
+```
+<br>
+In many variables, the distribution is rather skewed, or a single value is heavily represented. "Chas" indeed is a categorical variable with levels 0 and 1. 
+
+Concerning correlations, many variables appear to be correlated. For example, crime appears to be most associated (inversely correlated) with the distance to employment centers. Note that the circles represent spearman's correlation coefficients. "Chas" is not correlated with the values, as it is a binomial variable. 
+
+### Editing the data
+let's edit the data so that we can do some clustering and classification.
+```{r, warning=FALSE}
+#scale Boston and turn it into a data frame. The mean of all variables becomes 0 and values are SD's from center. 
+scaled_b <- Boston %>% scale %>% as.data.frame
+summary(scaled_b)
+
+#create a factor of crime rate. With "mutate(crim = crim...)" we override the old values of 'crim' and we don't need to drop any old variables
+bins <- quantile(scaled_b$crim)
+scaled_b <- scaled_b %>% mutate(crim = cut(scaled_b$crim, 
+                               breaks = bins, 
+                               include.lowest = TRUE, 
+                               label = c("low", "med_low", "med_high", "high")))
+
+
+# Divide the dataset to 'train' and 'test', 80% and 20%
+n <- nrow(scaled_b)
+ind <- sample(n, size = 0.8*n)
+
+train <- scaled_b[ind,]
+test <- scaled_b[-ind,]
+```
+
+## Linear discriminant analysis
+```{r}
+lda_boss <- lda(crim ~ ., data = train)
+
+# the function for lda biplot arrows
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+#numeric classes of crime rates
+classes <- as.numeric(train$crim)
+
+# plot the lda results
+plot(lda_boss, dimen = 2, col = classes, pch = classes)
+lda.arrows(lda_boss, myscale = 2)
+
+#test predicted and observed classes
+observed <- test$crim
+predicted <- predict(lda_boss, newdata = test)
+
+crosstab <- table(correct = observed, predicted = predicted$class)
+crosstab
+```
+<br>
+"High" crime rates appear to be correctly predicted. In other classes, around 50% of predictions are correct, but most wrong predictions are in adjacent classes of crime rate (e.g. correct class med_low, predicted class med_high).
+
+## K-means
+Let's reload the data for clustering.
+```{r}
+#reload & scale Boston
+data('Boston') 
+boston_scaled <- Boston %>% scale %>% as.data.frame 
+
+#euclidean distances of Boston
+dist_eu <- dist(boston_scaled)
+summary(dist_eu)
+
+#how many centroids should we have?
+set.seed(123)
+k_max <- 10
+twcss <- sapply(1:k_max, function(k){kmeans(boston_scaled, k)$tot.withinss})
+qplot(x = 1:k_max, y = twcss, geom = 'line')
+```
+<br>
+the optimal number of clusters could be 2 because the steepest drop ends there. Let's however select 3. The sum of squared distances drops nicely even after that. 
+```{r}
+# run the K-means cluster analysis again with 3 centroids and plot the results
+kmc <- kmeans(boston_scaled, centers = 3)
+Boston$cluster <- as.factor(kmc$cluster)
+pairs(Boston[5:13], col = Boston$cluster, pch = 19, cex = 0.2)
+
+Boston %>% gather(key, value, -cluster) %>%
+  ggplot(., aes(x = key, y = value, group = cluster, col = cluster)) + geom_boxplot() + 
+  facet_wrap("key", scales = "free", shrink = TRUE)
+```
+First figure shows the variable pairs visualized with scatter plots. The biggest differences between the 3 clusters are in variables age, criminal rates, distance to employment centers, proportion of lower-status residents (lstat), value of houses (medv), amount of nitric gas (nox), students to pupils -ratio (pratio) and so on. 
+
+### BONUS
+
+```{r}
+set.seed(123)
+# Create another K-means clustering with 5 centroids. boston_scaled exists.
+data("Boston")
+boston_scaled <- Boston %>% scale %>% as.data.frame
+kmc_bonus <- kmeans(boston_scaled, centers = 5)
+boston_scaled$cluster <- kmc_bonus$cluster
+lda_bonus <- lda(cluster ~ ., data = boston_scaled)
+
+# visualisation. Using the same functions than in previous sections. "col" and "pch" are set to boston$clusters
+plot(lda_bonus, dimen = 2, col = boston_scaled$cluster, pch = boston_scaled$cluster)
+lda.arrows(lda_bonus, myscale = 2.5)
+
+```
+
+A couple of variables stands out in these clusters - Black and crim seem to contribute as individual variables. It should be noted that the results were very varying, before adding "set.seed(123) -line." 
+
+### SUPER BONUS
+
+```{r, warning=FALSE, message=FALSE}
+library(plotly)
+
+#copy-pasting the code
+model_predictors <- dplyr::select(train, -crim)
+
+# check the dimensions
+dim(model_predictors)
+dim(lda_boss$scaling)
+
+# matrix multiplication
+matrix_product <- as.matrix(model_predictors) %*% lda_boss$scaling
+matrix_product <- as.data.frame(matrix_product)
+
+# k-means clustering for colors
+kmc_superbonus <- kmeans(model_predictors, centers = 3)
+model_predictors$cluster <- kmc_superbonus$cluster
+
+# 3D plots
+plot_ly(x = matrix_product$LD1, y = matrix_product$LD2, z = matrix_product$LD3, color = train$crim)
+
+plot_ly(x = matrix_product$LD1, y = matrix_product$LD2, z = matrix_product$LD3, color = model_predictors$cluster)
+        
+```
+
