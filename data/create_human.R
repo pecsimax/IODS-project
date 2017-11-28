@@ -16,6 +16,7 @@ str(gii)
 dim(gii)
 summary(gii)
 
+# rename variables 
 hd_ren <- hd %>% tbl_df %>% 
        rename(hdi_rank = HDI.Rank,
               country = Country,
@@ -24,7 +25,8 @@ hd_ren <- hd %>% tbl_df %>%
               edu_exp = Expected.Years.of.Education,
               edu_mean = Mean.Years.of.Education,
               gni = Gross.National.Income..GNI..per.Capita,)
-
+              
+# more rename of gii, also computing the two new variables
 gii_ren <- gii %>% tbl_df %>% rename(gii_rank = GII.Rank,
                                      country = Country,
                                      gii = Gender.Inequality.Index..GII.,
@@ -38,7 +40,8 @@ gii_ren <- gii %>% tbl_df %>% rename(gii_rank = GII.Rank,
   mutate(edu_ratio = (edu2_female / edu2_male),
          part_ratio = labour_part_female / labour_part_male)
 
+#join the two datasets. It has 195 rowns and 19 variables, yey!
 human <- inner_join(hd_ren, gii_ren, by = "country")
 
-
+#save the file
 write.csv(human, file = "human.csv")
