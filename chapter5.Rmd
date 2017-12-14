@@ -1,0 +1,139 @@
+---
+title: "chapter 5"
+output: html_document
+---
+
+```{r, include=FALSE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(GGally)
+library(factoextra)
+```
+
+# CHAPTER 5: dimension reduction
+
+In this chapter, we are working with the 'human' dataset. It's a data from the UN, aiming to describe many, measureable aspects of development level - not only economic growth. The aim of the data is to calculcate 'HDI', human development index. HDI is a mean of three indices - education index, life expectancy index, and GNI index (gross national income). 
+
+```{r}
+path <- "/Users/pecsi_max/Desktop/GitHub/IODS-project/data/human"
+
+#setting the "row.names = 1" indicates that rowames come as row names, not as a separate variable
+human <- read.csv(path, row.names = 1)
+dim(human)
+
+str(human)
+```
+<br>
+
+## The data
+
+* edu_ratio: Ratio of females with at least secondary education to males with at least secondary education
+* part_ratio: ratio of females to males who are in the active labour force
+* edu_exp: expected years of education
+* life_exp: life expectancy
+* gni: gross national income
+* mat_mort_ratio: maternal mortality ratio
+* ado_birthr: adolescent birth rate
+* parli_f: percentage of female representatives in parliament
+
+```{r echo = F}
+pairs_plot_human <- ggpairs(human, mapping = aes(alpha = 0.5), 
+                      lower = list(combo = wrap("facethist", bins = 20),
+                                   continuous = wrap("points", size=0.1)),
+                      upper = list(continuous = wrap("cor", alpha = 1)))
+
+pairs_plot_human
+```
+
+Each observation is a value from a single country, so we look at the distribution of the world. slightly two-peaked distributions are seen in maternal mortality, life-expectancy, education ratio. Quite strong correlations are seen with some variables, which might indicate good use of factor analysis. 
+
+Next, we'll do the PCA without scaling the dataset.
+
+## PCA
+### PCA without scaling
+
+```{r}
+pca_human_notscaled <- prcomp(human)
+summary(pca_human_notscaled)
+
+biplot(pca_human_notscaled, choices = 1:2, cex = c(0.6, 1), col = c("grey50", "deeppink2"))
+
+```
+<br>
+Looks like the first component would explain almost all variance in the data. That is gross national income. This is probably due to the dataset not being scaled, and GNI probably is numerically very large. We also got some warnings of zero-length arrows, probably reflecting the same phenomenom
+
+Next, we'll scale the data and try PCA again. The summary of the scaled data will not be shown.
+
+### PCA with scaled data
+
+```{r}
+human_scaled <- scale(human)
+
+pca_human_scaled <-  prcomp(human_scaled)
+
+s <- summary(pca_human_scaled)
+pca_pr <- round(100*s$importance[2,], digits = 0) 
+
+pc_lab <- paste0(names(pca_pr), " (", pca_pr, "%)")
+
+biplot(pca_human_scaled, choices = 1:2, cex = c(0.5, 1), col = c("grey50", "deeppink1"), 
+       xlab = pc_lab[1], ylab = pc_lab[2])
+
+
+```
+
+### Interpretations
+
+Now the variances explained, as well as the arrow graph, look better. PCA is sensitive to the absolute numerical parameters of the variables, this is why it requires scaling. 
+
+In the plot are shown the two first PC:s and how the original variables contribute to the PC:s. Looks like that the second PC describes the variables 'parli_f' and 'part_ratio', i.e. the ratio of females in parliament and in labour force. Interestingly, education is not there. 
+
+All other varibales seem to contribute to the 1st PC. They are rather clear measurements of how developed a society is (maternal mortality ratio, gni etc). Perhaps the second PC reflects some kind of conservative values, that can occur in even developed nations. 
+
+On the other hand, maternal mortality ratio and adolescent birth rate appear to be very closely correlated to each other, and inversely with other horizontal arrows. 
+
+## The next data
+"Tea" dataset from the Factominer package. It is a dataset containing a large number of factor variables, many of which are binary. It's a data of a questionnaire measuring tea consumption and related things.
+
+We select only certain columns to keep, and take a glimpse of the distribution of these columns.
+
+```{r}
+library(FactoMineR)
+data("tea")
+
+str(tea)
+dim(tea)
+
+
+teavars <- c("Tea", "How", "how", "sugar", "where", "price", "spirituality", "healthy", "slimming", "SPC")
+
+tea_time <- dplyr::select(tea, one_of(teavars))
+  
+  
+gather(tea_time) %>% 
+  ggplot(aes(value)) +
+  geom_bar() +
+  facet_wrap("key", scales = "free") +
+  theme(
+    axis.text.x = element_text(angle = 25, hjust = 1, size = 8))
+
+```
+<br>
+Multiple correspondence analysis is a generalisation of PCA. The plot is similar to biplot, plotting the two firsts components. Colors represent the variables, and the distance of two points reflect how 'similar' they are in relation of the component.
+
+```{r}
+# multiple correspondence analysis
+mca <- MCA(tea_time, graph = FALSE)
+
+summary(mca)
+
+# visualize MCA
+plot(mca, invisible=c("ind"), habillage = "quali")
+```
+<br>
+First looking at the positions to x-axis, tea shop and unpacked tea stand out. In the other end there are p_cheap, chain store, slimming, p_branded, and sugar. Could this represent how much people value the "quality" and "finesse" of the tea? To clarify, those people who put sugar in their tea perhaps are not that interested about the details in the taste. Same goes for those who buy their tea in supermarkets, or drink tea because they think it's good for weight loss.
+
+In y-axis, it's actually really hard to say! In the bottom, there are some variables reflecting large variability: other, p_variable, tea bag + unpacked etc. Perhaps they are the people who drink tea in many forms, or then are not so strict in their preferences?

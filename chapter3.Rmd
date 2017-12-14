@@ -2,7 +2,7 @@
 title: "chapter 3"
 output: html_document
 ---
-
+# CHAPTER 3
 ```{r, include=FALSE}
 library(tidyr)
 library(dplyr)
@@ -22,7 +22,7 @@ alc <- read.csv(path)
 colnames(alc)
 glimpse(alc)
 ```
-#### Data
+## Data
 'alc' is a dataset of students portugese schools, about their performance in two subjects, mathematics and portugese language. It contains variables on students' education, family, school performance, and alcohol use, which is a special interest in this report.
 <br>
 For exploration, let's create two datasets - alc_col and alc_other. Alc_col contains factors, alc_other supposedly continuous variables. As "failures" -variable seems to be 4-level, let's add it to alc_cols as well.
@@ -46,7 +46,7 @@ alc_other %>% gather(key, value, -high_use) %>%
 ```
 <br>
 
-#### Interesting variables
+## Interesting variables
 We select 4 interesting variables for analysis, let they be: famrel, sex, absences, goout.
 
 * Famrel - quality of family relationships (numeric: from 1 - very bad to 5 - excellent). Probably bad family relations relate to higher alcohol use.
@@ -70,7 +70,7 @@ CreateTableOne(data = alc_log, strata = "high_use", vars = c("famrel", "sex", "a
 
 In all our variables, there appears to be a statistically significant difference in either the ratio of heavy drinkers, or the mean value of continuous variable is different in those who drink much.
 
-### The logistic regression model
+## The logistic regression model
 ```{r}
 modbin <- glm(data = alc_log, high_use ~ famrel + sex + absences + goout, family = "binomial") 
 
@@ -85,14 +85,20 @@ modbin_odds
 <br>
 All the variables are significantly associated with high alcohol use. Family relations are inversely related - the better the family relations, the lower the odds for drinking are. Being male increases the OR to 2,8. Absences and going out are related to higher chance of high alcohol use. 
  
-### Prediction
+## Prediction
  
 ```{r}
 #let's add the probabilities to data frame
 # JUHON VINKIT: treshold tulisi tähän, tätä muuttamalla voit säätää sensitiviteettiä ja spesifiteettiä
 
-alc_pred$prob <- predict(modbin, type = "response")
+#create a dataset where we'll predict the values
+alc_pred <- alc_log
 
+alc_pred$prob <- predict(modbin, type = "response")
+```
+
+First, we'll find out what is the optimal cut-off value for probability of high drinking (based on the model) for the student to be classified as high drinker. We plot the proportion of incorrect classifications against the cut-off value.
+```{r}
 sapply(1:99, function(x) {
   a <- alc_pred$prob > (x/100)  
   b <- a == alc$high_use
@@ -101,7 +107,7 @@ sapply(1:99, function(x) {
 ) %>% plot  
 
 
-alc_pred$pred <- (alc$prob > 0.46)
+alc_pred$pred <- (alc_pred$prob > 0.46)
 
 #table 
 obs_table <- table(high_use = alc_pred$high_use, prediction = alc_pred$pred) 
@@ -111,7 +117,7 @@ obs_table
 prob_table
 ```
 <br>
-in 'obs_table, the number of "true positives" is 50, and "false positives" is 14. "True negatives" are 254, and "false negatives" are 64. In prob_table, 66% were classified rightly as non-high drinkers, 16% were classified wrongly to non-high drinkers; 3% were classified wrongly as high-drinkers, and 13% were rightly assigned a high-drinker status.
+in the table with absolute number of observations, the number of "true positives" is 5, and "false positives" is 14. "True negatives" are 254, and "false negatives" are 64. In prob_table, 66% were classified rightly as non-high drinkers, 16% were classified wrongly to non-high drinkers; 3% were classified wrongly as high-drinkers, and 13% were rightly assigned a high-drinker status.
 <br>
 <br>
 
@@ -122,7 +128,7 @@ ggplot(alc_pred, aes(x = prob, y = high_use, col = pred)) + geom_point()
 <br>
 we see that in high drinkers, the number of false predictions is rather high. 
 
-### Proportion of false predictions
+## Proportion of false predictions
 ```{r}
 #define the loss function
 loss_func <- function(class = alc_pred$high_use, prob) {
@@ -145,7 +151,7 @@ If we guess at randomly that students are non-high drinkers, the prediction erro
 <br>
 <br>
 
-### Cross-validation
+## Cross-validation
 ```{r}
 library(boot)
 cv <- cv.glm(data = alc_pred, cost = loss_func, glmfit = modbin, K = 10)
@@ -154,20 +160,19 @@ cv$delta[1]
 <br>
 The cross-validation analysis is done with the function 'cv.glm'. K is the number of pieces we split the data into. The first element of cv$delta is the prediction error (the second component would be a value adjusted for some bias). So, with 5-fold cross-validation, our model has 20,2% prediction error, which is better than the apprx. 26% error in DataCamp excercise!
 
-#### SUPER-BONUS
+## SUPER-BONUS
 ```{r}
 library(boot)
 colnames(alc)
 
 #2nd model
-modbin2 <- glm(data=alc, high_use ~ sex + school + age + address + famsize + Pstatus + reason + internet + failures + schoolsup +
-                  activities + romantic + freetime + goout + absences + G3, family = "binomial")
+modbin2 <- glm(data=alc, high_use ~ sex + school + age + address + famsize + Pstatus + reason + internet + failures + schoolsup + activities + romantic + freetime + goout + absences + G3, family = "binomial")
 
 
 prob2 <- predict(modbin2, type = "response")
 train2 <- loss_func(prob=prob2)
 
-cv2 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin2, K = 10)
+cv2 <- cv.glm(data=alc, cost = loss_func, glmfit = modbin2, K = 10)
 
 #3rd model
 modbin3 <- glm(data=alc, high_use ~ sex + school + age  + failures + schoolsup +
@@ -177,15 +182,15 @@ modbin3 <- glm(data=alc, high_use ~ sex + school + age  + failures + schoolsup +
 prob3 <- predict(modbin3, type = "response")
 train3 <- loss_func(prob=prob3)
 
-cv3 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin3, K = 10)
+cv3 <- cv.glm(data=alc, cost = loss_func, glmfit = modbin3, K = 10)
 
-#4th model
+# 4th model
 modbin4 <- glm(data=alc, high_use ~ sex + school + schoolsup + reason + activities + goout + freetime + absences, family = "binomial")
 
 prob4 <- predict(modbin4, type = "response")
 train4 <- loss_func(prob=prob4)
 
-cv4 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin4, K = 10)
+cv4 <- cv.glm(data=alc, cost = loss_func, glmfit = modbin4, K = 10)
 
 
 #5th model
@@ -194,7 +199,7 @@ modbin5 <- glm(data=alc, high_use ~ sex  + activities + goout + absences, family
 prob5 <- predict(modbin5, type = "response")
 train5 <- loss_func(prob=prob5)
 
-cv5 <- cv.glm(data=alc_pred, cost = loss_func, glmfit = modbin5, K = 10)
+cv5 <- cv.glm(data=alc, cost = loss_func, glmfit = modbin5, K = 10)
 
 
 #now create a vector of testing errors and training errors

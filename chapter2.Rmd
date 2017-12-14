@@ -1,6 +1,5 @@
 # Chapter 2: Regression and model validation excercise
 
-*On tuesday, I did the data wrangling excercises and on wednesday, the data analysis tasks. I have some prior experience in working with dplyr, so the wrangling part was not too challenging, but it was great refreshment. For example, I realised that in dplyr, it's not too easy to calculate "rowMeans" -style of functions selecting only a part of the file - the best way to do it was by first selecting a part of dataset.*
 
 ### Here begins the code
 setup, setting the working directory and opening the data

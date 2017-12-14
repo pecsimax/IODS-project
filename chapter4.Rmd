@@ -32,6 +32,7 @@ glimpse(Boston)
 The data contains 506 rows and 14 columns, i.e. variables. All variables are numeric (type 'dbl') except 'chas' and 'rad', that are 'int' and appear as factors.
 
 ```{r}
+
 #Visualize the histograms
 Boston %>% gather(key, value) %>%
   ggplot(., aes(x=value)) + geom_histogram(bins = 30) + 
@@ -46,7 +47,6 @@ cor(Boston, method = "spearman") %>% corrplot(method = "circle",
                          tl.cex = 1.3, cl.pos = "b",
                          p.mat = p.mat$p, sig.level = 0.05, insig = "blank",
                          diag = FALSE)
-
 ```
 <br>
 In many variables, the distribution is rather skewed, or a single value is heavily represented. "Chas" indeed is a categorical variable with levels 0 and 1. 
@@ -141,7 +141,7 @@ First figure shows the variable pairs visualized with scatter plots. The biggest
 
 ```{r}
 set.seed(123)
-# Create another K-means clustering with 5 centroids. boston_scaled exists.
+# Create another K-means clustering with 5 centroids.
 data("Boston")
 boston_scaled <- Boston %>% scale %>% as.data.frame
 kmc_bonus <- kmeans(boston_scaled, centers = 5)
@@ -173,7 +173,7 @@ matrix_product <- as.matrix(model_predictors) %*% lda_boss$scaling
 matrix_product <- as.data.frame(matrix_product)
 
 # k-means clustering for colors
-kmc_superbonus <- kmeans(model_predictors, centers = 3)
+kmc_superbonus <- kmeans(model_predictors, centers = 5)
 model_predictors$cluster <- kmc_superbonus$cluster
 
 # 3D plots
