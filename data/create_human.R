@@ -59,13 +59,16 @@ human_ <- human_[which(complete.cases(human_)),]
 
 #it appears that the last 7 rows are regions instead of countries
 human_$country
-human_comp <- human_[1:(nrow(human_) - 7),]
+human <- human_[1:(nrow(human_) - 7),]
 
 #set country names to row names
-names <- human_comp$country
-rownames(human_comp) <- names
+names <- human$country
+rownames(human) <- names
 
 
-#Drop the country variable and confirm that we have a 155 x 9 dataset
-dplyr::select(human_comp, -country)
-dim(human_comp)
+#Drop the country variable and confirm that we have a 155 x 8 dataset
+human <- dplyr::select(human, -country)
+dim(human)
+
+write.csv(human, file = "human")
+
